@@ -259,6 +259,7 @@ type nontac_expr =
   | PrjV of nontac_expr * int (* non-mutable projection *)
   | Prim of ml_tactic_name
   | ValLetNoRec of (Name.t * nontac_expr) list * nontac_expr
+  | ValLetRec of (Id.t * (Name.t list * tac_expr)) list * nontac_expr
 
 (** evaluates to a valexpr tactic *)
 and tac_expr_head =
@@ -450,11 +451,11 @@ let rec is_nontac = function
   | GTacPrj (typ, sube, i) ->
     not (is_mutable_proj typ i) && is_nontac sube
 
-  | GTacLet (false, bnd, e) ->
+  | GTacLet (_, bnd, e) ->
     List.for_all (fun (_, e) -> is_nontac e) bnd
     && is_nontac e
 
-  | GTacApp _ | GTacLet (true, _, _) | GTacCse _
+  | GTacApp _ | GTacCse _
   | GTacSet _ | GTacWth _ | GTacFullMatch _
   | GTacExt _
     -> false
@@ -494,6 +495,12 @@ let rec nontac_expr env ((cnt, nonvals) as acc) e = match e with
         let info = if arity = 0 then Valexpr else Function {arity} in
         acc, Ref (LocalKn ("Tac2compiledPrim."^ml.mltac_tactic, info))
     end
+
+  | GTacLet (true, bnd, sube) when is_nontac e ->
+    let envbnd, lets = letrec_bnd env bnd in
+    let acc', sube = nontac_expr envbnd acc sube in
+    assert (acc' == acc);
+    acc, ValLetRec (lets, sube)
 
   | GTacLet (false, bnd, sube) when is_nontac e ->
     let envbnd, nas' = push_env push_user_names (List.map fst bnd) Valexpr env in
@@ -544,36 +551,16 @@ and tac_expr env e =
       let acc, args = List.fold_left_map (nontac_expr env) acc args in
       acc, App (h, args)
 
-    | GTacLet (true, lets, e) ->
-      let lets = lets |> List.filter_map (fun (na, e) ->
-          match e with
-          | GTacFun (bnd, e) ->
-            begin match na with
-            |  Anonymous ->
-              (* "let rec _ := ..." seems good for nothing, just a syntax curiosity
-                 lambda abstraction can't have effects so just drop it *)
-              None
-            | Name na ->
-              Some (na, (bnd, e))
-            end
-          | _ -> assert false)
-      in
-      let env, nas' =
-        List.fold_left_map (fun env (na, (bnd, _)) ->
-            push_env push_user_id na (Function {arity=List.length bnd}) env)
-          env lets
-      in
-      let lets = List.map2 (fun (_, (bnd, e)) na' ->
-          let env, bnd = push_env push_user_names bnd Valexpr env in
-          let e = tac_expr env e in
-          (na', (bnd, e)))
-          lets
-          nas'
-      in
-      let e = tac_expr env e in
-      acc, LetRec (lets, e)
+    | GTacLet (true, lets, sube) ->
+      if is_nontac e then
+        let acc', e = nontac_expr env acc e in
+        assert (acc == acc');
+        acc, Return e
+      else
+        let env, lets = letrec_bnd env lets in
+        let sube = tac_expr env sube in
+        acc, LetRec (lets, sube)
 
-    (* XXX detect when a let can be nontac_expr *)
     | GTacLet (false, bnd, sube) ->
       if is_nontac e then
         let acc', e = nontac_expr env acc e in
@@ -649,6 +636,34 @@ and tac_expr env e =
   in
   { spilled_exprs = nonvals;
     head_expr = e; }
+
+and letrec_bnd env lets =
+  let lets = lets |> List.filter_map (fun (na, e) ->
+      match e with
+      | GTacFun (bnd, e) ->
+        begin match na with
+        |  Anonymous ->
+          (* "let rec _ := ..." seems good for nothing, just a syntax curiosity
+             lambda abstraction can't have effects so just drop it *)
+          None
+        | Name na ->
+          Some (na, (bnd, e))
+        end
+      | _ -> assert false)
+  in
+  let env, nas' =
+    List.fold_left_map (fun env (na, (bnd, _)) ->
+        push_env push_user_id na (Function {arity=List.length bnd}) env)
+      env lets
+  in
+  let lets = List.map2 (fun (_, (bnd, e)) na' ->
+      let env, bnd = push_env push_user_names bnd Valexpr env in
+      let e = tac_expr env e in
+      (na', (bnd, e)))
+      lets
+      nas'
+  in
+  env, lets
 
 let nontac_expr env state acc e =
   let state = ref state in
@@ -799,7 +814,16 @@ let rec pp_nontac_expr = function
        str "in" ++ spc() ++
        pp_nontac_expr e ++
        str ")")
-
+  | ValLetRec (lets, e) ->
+    let pr_one_let (na, (bnd, e)) =
+      hov 1 (Id.print na ++ pp_binders bnd ++ str " =") ++ spc () ++
+      pp_expr e ++ spc()
+    in
+    surround
+      (hv 0
+         (str "let rec " ++ prlist_with_sep (fun () -> str "and ") pr_one_let lets ++
+          str "in" ++ spc()) ++
+       pp_nontac_expr e)
 
 (* produce a ocaml term of type valexpr tactic *)
 and pp_expr e =
