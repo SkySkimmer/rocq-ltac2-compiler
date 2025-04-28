@@ -16,7 +16,7 @@ open Proofview.Notations
 
 let core_prefix path n = KerName.make path (Label.of_id (Id.of_string_soft n))
 
-let coq_core n = core_prefix Tac2env.coq_prefix n
+let coq_core n = core_prefix Tac2env.rocq_prefix n
 
 let err_outofbounds =
   Tac2interp.LtacError (coq_core "Out_of_bounds", [||])
