@@ -17,7 +17,7 @@ Ltac2 rec iter tac ls :=
 
 Ltac2 rec find (id : ident) (term : constr) :=
   match Constr.Unsafe.kind term with
-  | Constr.Unsafe.Cast c cst ty => find id c; find id ty
+  | Constr.Unsafe.Cast c _cst ty => find id c; find id ty
   | Constr.Unsafe.App f xs => find id f; Array.iter (find id) xs
   | _ => ()
   end.
@@ -32,6 +32,6 @@ Goal True.
          do 5 pose c).
   Time let v := Control.hyps () in
        let i := @x in
-       iter (fun (h, body, ty) => find i ty; match body with Some b => find i b | None => () end) v.
+       iter (fun (_h, body, ty) => find i ty; match body with Some b => find i b | None => () end) v.
   (* Finished transaction in 0.75 secs *)
 Abort.

@@ -189,7 +189,7 @@ Module MatchGoal.
 
   Ltac2 check () :=
     lazy_match! goal with
-    | [ h1 : context c1 [ ?t1 ] , h2 := context c2 [ Nat.add ?v2 ] , h3 : context c3 [ ?t2 ] |- _ ] =>
+    | [ _h1 : context c1 [ ?t1 ] , _h2 := context c2 [ Nat.add ?v2 ] , _h3 : context c3 [ ?t2 ] |- _ ] =>
         check_constr t1 'bool;
         check_constr v2 '0;
         check_constr t2 'bool;
