@@ -398,6 +398,7 @@ let branches_of_with brs def =
 let is_mutable_proj typ p =
   match snd (Tac2env.interp_type typ) with
   | GTydRec fields -> pi2 (List.nth fields p)
+  | GTydDef None -> (* abstracted type, assume mutable *) true
   | _ -> assert false
 
 let reference state x =
