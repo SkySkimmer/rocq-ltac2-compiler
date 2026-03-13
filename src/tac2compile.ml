@@ -1217,7 +1217,7 @@ let perform_compile ?(recursive=true) qidl =
       in
       match kn with
       | TacConstant kn -> kn
-      | TacAlias _ ->
+      | TacAbbrev _ ->
         CErrors.user_err ?loc:qid.CAst.loc Pp.(str "Not a definition " ++ Libnames.pr_qualid qid))
   in
   compile ~recursive knl
