@@ -17,7 +17,7 @@ depends: [
   "ocaml" {>= "4.09.0"}
   "rocq-runtime" {= "dev"}
   "rocq-core"
-  "coq-core" # still using coq_makefile
+  "rocq-runtime" # still using coq_makefile
 ]
 
 authors: [

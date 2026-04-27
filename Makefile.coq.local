@@ -1,1 +1,1 @@
-CAMLPKGS += -package coq-core.plugins.ltac2
+CAMLPKGS += -package rocq-runtime.plugins.ltac2
