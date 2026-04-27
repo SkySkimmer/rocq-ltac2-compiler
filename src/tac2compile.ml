@@ -55,11 +55,11 @@ let rawstr s = quote (str (String.escaped s))
 
    "current_module__" is the name of the current OCaml module
 
-   Capitalized names (modules, constructors) are from coq-core (mostly ltac2 plugin)
+   Capitalized names (modules, constructors) are from rocq-runtime (mostly ltac2 plugin)
    The compiler does not translated Ltac2 types
    so instead of eg "Some 1" we have "ValBlk (0, [|ValInt 1|])"
 
-   All other names are user names. As such to access coq-core values we must qualify them,
+   All other names are user names. As such to access rocq-runtime values we must qualify them,
    eg "Tac2val.mk_closure_val" etc
 *)
 
@@ -439,7 +439,7 @@ let is_pure_ctor = function
   | Tuple _ -> true
 
 let precompiled_prim ml =
-  if ml.mltac_plugin <> "coq-core.plugins.ltac2" then None
+  if ml.mltac_plugin <> "rocq-runtime.plugins.ltac2" then None
   else CString.Map.find_opt ml.mltac_tactic Tac2compiledPrim.registered
 
 let rec is_nontac = function
